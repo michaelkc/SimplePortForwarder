@@ -36,7 +36,6 @@ namespace PortForwarder
                 clientPair.connectRetryCount = 0;
                 clientPair.disconnected = false;
                 clientPair.source = asyncState.EndAcceptTcpClient(asyncResult);
-                OnBeforeTargetConnect(clientPair.source.Client);
                 clientPair.target = new TcpClient();
                 clientPair.target.BeginConnect(_targetHost, _targetPort, TargetConnect, clientPair);
                 asyncState.BeginAcceptTcpClient(AcceptTcpClient, _listener);
@@ -162,7 +161,6 @@ namespace PortForwarder
                 if (!pair.disconnected)
                 {
                     pair.disconnected = true;
-                    OnAfterTargetDisconnect(pair.source.Client);
                 }
 
                 try
@@ -234,36 +232,5 @@ namespace PortForwarder
         {
             _listener.Stop();
         }
-
-        public event AfterTargetDisconnectHandler AfterTargetDisconnect;
-
-        public void OnAfterTargetDisconnect(Socket client)
-        {
-            if (AfterTargetDisconnect == null)
-                return;
-            try
-            {
-                AfterTargetDisconnect(this, new AfterTargetDisconnectArgs(client));
-            }
-            catch
-            {
-            }
-        }
-
-        public event BeforeTargetConnectHandler BeforeTargetConnect;
-
-        public void OnBeforeTargetConnect(Socket client)
-        {
-            if (BeforeTargetConnect == null)
-                return;
-            try
-            {
-                BeforeTargetConnect(this, new BeforeTargetConnectArgs(client));
-            }
-            catch
-            {
-            }
-        }
-
     }
 }
