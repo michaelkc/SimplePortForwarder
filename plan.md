@@ -19,12 +19,12 @@
 
 ## Phase 2: Windows Service Support
 
-- [ ] Add `Microsoft.Extensions.Hosting` and `Microsoft.Extensions.Hosting.WindowsServices` NuGet packages
-- [ ] Refactor `Program.cs` to use the Generic Host (`Host.CreateDefaultBuilder`)
-- [ ] Extract forwarding logic into a `BackgroundService` (e.g., `PortForwarderService`)
-- [ ] Support dual-mode: runs as console app interactively, runs as Windows Service when installed
-- [ ] Configuration via `appsettings.json` and/or command-line args for `LocalPort`, `RemoteHost`, `RemotePort`
-- [ ] Wire up `ILogger` to replace `Console.WriteLine` / `Trace` calls
+- [x] Add `Microsoft.Extensions.Hosting` and `Microsoft.Extensions.Hosting.WindowsServices` NuGet packages
+- [x] Refactor `Program.cs` to use the Generic Host (`Host.CreateDefaultBuilder`)
+- [x] Extract forwarding logic into a `BackgroundService` (e.g., `PortForwarderService`)
+- [x] Support dual-mode: runs as console app interactively, runs as Windows Service when installed
+- [x] Configuration via `appsettings.json` and/or command-line args for `LocalPort`, `RemoteHost`, `RemotePort`
+- [x] Wire up `ILogger` to replace `Console.WriteLine` / `Trace` calls
 
 ## Phase 3: XUnit v3 Test Coverage
 

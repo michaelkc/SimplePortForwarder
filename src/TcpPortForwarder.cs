@@ -1,22 +1,24 @@
-﻿using System.Diagnostics;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace PortForwarder
 {
     internal sealed class TcpPortForwarder
     {
         private readonly int _localPort;
+        private readonly ILogger<TcpPortForwarder> _logger;
         private readonly string _targetHost;
         private readonly int _targetPort;
         private TcpListener? _listener;
 
-        public TcpPortForwarder(int localPort, int targetPort, string targetHost)
+        public TcpPortForwarder(int localPort, int targetPort, string targetHost, ILogger<TcpPortForwarder> logger)
         {
             _localPort = localPort;
             _targetPort = targetPort;
             _targetHost = targetHost;
+            _logger = logger;
         }
 
         public void Start()
@@ -44,7 +46,7 @@ namespace PortForwarder
             }
             catch (Exception ex)
             {
-                Trace.TraceError("Failed when trying to accept new clients with '{0}'", (object) ex.ToString());
+                _logger.LogError(ex, "Failed when trying to accept new clients");
             }
         }
 
@@ -67,11 +69,11 @@ namespace PortForwarder
                 {
                     ++clientPair.connectRetryCount;
                     clientPair.target!.BeginConnect(_targetHost, _targetPort, TargetConnect, clientPair);
-                    Trace.TraceWarning("Retrying connect");
+                    _logger.LogWarning("Retrying connect");
                 }
                 else
                 {
-                    Trace.TraceError("Connection failed: {0}", (object) ex.ToString());
+                    _logger.LogError(ex, "Connection failed");
                     clientPair.source!.Close();
                 }
             }
@@ -80,7 +82,7 @@ namespace PortForwarder
             }
             catch (Exception ex)
             {
-                Trace.TraceError("Failed connecting to target with '{0}'", (object) ex.ToString());
+                _logger.LogError(ex, "Failed connecting to target");
                 clientPair.source!.Close();
             }
         }
@@ -106,7 +108,7 @@ namespace PortForwarder
                     }
                     catch (Exception ex)
                     {
-                        Trace.TraceInformation("Client disconnected: '{0}'", (object) ex.Message);
+                        _logger.LogInformation("Client disconnected: '{Message}'", ex.Message);
                     }
 
             if (asyncState.disconnected)
@@ -132,7 +134,7 @@ namespace PortForwarder
                     }
                     catch (Exception ex)
                     {
-                        Trace.TraceWarning("Server disconnected '{0}'", (object) ex.Message);
+                        _logger.LogWarning("Server disconnected: '{Message}'", ex.Message);
                     }
 
             if (asyncState.disconnected)
@@ -172,7 +174,7 @@ namespace PortForwarder
             }
             catch (Exception ex)
             {
-                Trace.TraceError(ex.ToString());
+                _logger.LogError(ex, "Error during disconnect");
             }
         }
 
