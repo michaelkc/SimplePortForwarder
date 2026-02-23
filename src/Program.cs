@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace PortForwarder
+﻿namespace PortForwarder
 {
     internal class Program
     {

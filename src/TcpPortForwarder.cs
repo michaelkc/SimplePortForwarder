@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -11,7 +10,7 @@ namespace PortForwarder
         private readonly int _localPort;
         private readonly string _targetHost;
         private readonly int _targetPort;
-        private TcpListener _listener;
+        private TcpListener? _listener;
 
         public TcpPortForwarder(int localPort, int targetPort, string targetHost)
         {
@@ -51,14 +50,12 @@ namespace PortForwarder
 
         private void TargetConnect(IAsyncResult asyncResult)
         {
-            var clientPair = asyncResult.AsyncState != null
-                ? (ClientPair) asyncResult.AsyncState
-                : throw new ArgumentNullException(nameof(asyncResult));
+            var clientPair = (ClientPair)asyncResult.AsyncState!;
             try
             {
-                clientPair.target.EndConnect(asyncResult);
+                clientPair.target!.EndConnect(asyncResult);
                 clientPair.targetStream = clientPair.target.GetStream();
-                clientPair.sourceStream = clientPair.source.GetStream();
+                clientPair.sourceStream = clientPair.source!.GetStream();
                 clientPair.sourceStream.BeginRead(clientPair.sourceBuffer, 0, clientPair.sourceBuffer.Length,
                     SourceRead, clientPair);
                 clientPair.targetStream.BeginRead(clientPair.targetBuffer, 0, clientPair.targetBuffer.Length,
@@ -69,13 +66,13 @@ namespace PortForwarder
                 if (clientPair.connectRetryCount < 2)
                 {
                     ++clientPair.connectRetryCount;
-                    clientPair.target.BeginConnect(_targetHost, _targetPort, TargetConnect, clientPair);
+                    clientPair.target!.BeginConnect(_targetHost, _targetPort, TargetConnect, clientPair);
                     Trace.TraceWarning("Retrying connect");
                 }
                 else
                 {
                     Trace.TraceError("Connection failed: {0}", (object) ex.ToString());
-                    clientPair.source.Close();
+                    clientPair.source!.Close();
                 }
             }
             catch (ObjectDisposedException)
@@ -84,24 +81,24 @@ namespace PortForwarder
             catch (Exception ex)
             {
                 Trace.TraceError("Failed connecting to target with '{0}'", (object) ex.ToString());
-                clientPair.source.Close();
+                clientPair.source!.Close();
             }
         }
 
         private void SourceRead(IAsyncResult asyncResult)
         {
-            var asyncState = (ClientPair) asyncResult.AsyncState;
+            var asyncState = (ClientPair)asyncResult.AsyncState!;
             if (!asyncState.disconnected)
-                if (asyncState.source.Connected)
+                if (asyncState.source!.Connected)
                     try
                     {
-                        var count = asyncState.sourceStream.EndRead(asyncResult);
+                        var count = asyncState.sourceStream!.EndRead(asyncResult);
                         if (count > 0)
                         {
                             Encoding.UTF8.GetString(asyncState.sourceBuffer, 0, count);
-                            if (asyncState.target.Connected)
+                            if (asyncState.target!.Connected)
                             {
-                                asyncState.targetStream.BeginWrite(asyncState.sourceBuffer, 0, count, TargetWrite,
+                                asyncState.targetStream!.BeginWrite(asyncState.sourceBuffer, 0, count, TargetWrite,
                                     asyncState);
                                 return;
                             }
@@ -119,16 +116,16 @@ namespace PortForwarder
 
         private void TargetRead(IAsyncResult asyncResult)
         {
-            var asyncState = asyncResult.AsyncState as ClientPair;
+            var asyncState = (ClientPair)asyncResult.AsyncState!;
             if (!asyncState.disconnected)
-                if (asyncState.target.Connected)
+                if (asyncState.target!.Connected)
                     try
                     {
-                        var count = asyncState.targetStream.EndRead(asyncResult);
+                        var count = asyncState.targetStream!.EndRead(asyncResult);
                         if (count > 0)
-                            if (asyncState.source.Connected)
+                            if (asyncState.source!.Connected)
                             {
-                                asyncState.sourceStream.BeginWrite(asyncState.targetBuffer, 0, count, SourceWrite,
+                                asyncState.sourceStream!.BeginWrite(asyncState.targetBuffer, 0, count, SourceWrite,
                                     asyncState);
                                 return;
                             }
@@ -151,7 +148,7 @@ namespace PortForwarder
             {
                 try
                 {
-                    if (pair.target.Client.Connected)
+                    if (pair.target?.Client?.Connected == true)
                         pair.target.Client.Close();
                 }
                 catch
@@ -165,7 +162,7 @@ namespace PortForwarder
 
                 try
                 {
-                    if (!pair.source.Client.Connected)
+                    if (pair.source?.Client?.Connected != true)
                         return;
                     pair.source.Client.Close();
                 }
@@ -181,13 +178,11 @@ namespace PortForwarder
 
         private void TargetWrite(IAsyncResult asyncResult)
         {
-            var pair = asyncResult.AsyncState != null
-                ? asyncResult.AsyncState as ClientPair
-                : throw new ArgumentNullException(nameof(asyncResult));
+            var pair = (ClientPair)asyncResult.AsyncState!;
             if (pair.disconnected)
                 try
                 {
-                    pair.targetStream.EndWrite(asyncResult);
+                    pair.targetStream!.EndWrite(asyncResult);
                 }
                 catch
                 {
@@ -195,8 +190,8 @@ namespace PortForwarder
             else
                 try
                 {
-                    pair.targetStream.EndWrite(asyncResult);
-                    pair.sourceStream.BeginRead(pair.sourceBuffer, 0, pair.sourceBuffer.Length, SourceRead, pair);
+                    pair.targetStream!.EndWrite(asyncResult);
+                    pair.sourceStream!.BeginRead(pair.sourceBuffer, 0, pair.sourceBuffer.Length, SourceRead, pair);
                 }
                 catch
                 {
@@ -206,11 +201,11 @@ namespace PortForwarder
 
         private void SourceWrite(IAsyncResult asyncResult)
         {
-            var asyncState = asyncResult.AsyncState as ClientPair;
+            var asyncState = (ClientPair)asyncResult.AsyncState!;
             if (asyncState.disconnected)
                 try
                 {
-                    asyncState.sourceStream.EndWrite(asyncResult);
+                    asyncState.sourceStream!.EndWrite(asyncResult);
                 }
                 catch
                 {
@@ -218,8 +213,8 @@ namespace PortForwarder
             else
                 try
                 {
-                    asyncState.sourceStream.EndWrite(asyncResult);
-                    asyncState.targetStream.BeginRead(asyncState.targetBuffer, 0, asyncState.targetBuffer.Length,
+                    asyncState.sourceStream!.EndWrite(asyncResult);
+                    asyncState.targetStream!.BeginRead(asyncState.targetBuffer, 0, asyncState.targetBuffer.Length,
                         TargetRead, asyncState);
                 }
                 catch
@@ -230,7 +225,7 @@ namespace PortForwarder
 
         public void Stop()
         {
-            _listener.Stop();
+            _listener?.Stop();
         }
     }
 }

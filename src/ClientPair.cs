@@ -8,9 +8,9 @@ namespace PortForwarder
         public readonly byte[] targetBuffer = new byte[65536];
         public int connectRetryCount;
         public bool disconnected;
-        public TcpClient source;
-        public NetworkStream sourceStream;
-        public TcpClient target;
-        public NetworkStream targetStream;
+        public TcpClient? source;
+        public NetworkStream? sourceStream;
+        public TcpClient? target;
+        public NetworkStream? targetStream;
     }
 }
