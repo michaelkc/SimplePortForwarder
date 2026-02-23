@@ -1,0 +1,54 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Package Name="SimplePortForwarder"
+           Manufacturer="michaelkc"
+           Version="1.0.0.0"
+           UpgradeCode="A7F1B2C3-D4E5-6789-ABCD-EF0123456789">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of SimplePortForwarder is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="SimplePortForwarder">
+
+        <Component Id="MainExecutable" Guid="B8F2C3D4-E5A6-7890-BCDE-F01234567890">
+          <File Id="PortForwarderExe" Source="$(PublishDir)\portforwarder.exe" KeyPath="yes" />
+
+          <ServiceInstall Id="PortForwarderService"
+                          Name="PortForwarder"
+                          DisplayName="Simple Port Forwarder"
+                          Description="TCP port forwarding service"
+                          Start="demand"
+                          Type="ownProcess"
+                          ErrorControl="normal" />
+
+          <ServiceControl Id="StopService"
+                          Name="PortForwarder"
+                          Stop="both"
+                          Remove="uninstall"
+                          Wait="yes" />
+        </Component>
+
+        <Component Id="AppSettings" Guid="C9A3D4E5-F6B7-8901-CDEF-012345678901">
+          <File Id="AppSettingsJson" Source="$(PublishDir)\appsettings.json" KeyPath="yes" />
+        </Component>
+
+      </Directory>
+    </StandardDirectory>
+
+    <ComponentGroup Id="PublishedFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(PublishDir)\**">
+        <Exclude Files="$(PublishDir)\portforwarder.exe" />
+        <Exclude Files="$(PublishDir)\appsettings.json" />
+      </Files>
+    </ComponentGroup>
+
+    <Feature Id="ProductFeature" Title="SimplePortForwarder" Level="1">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="AppSettings" />
+      <ComponentGroupRef Id="PublishedFiles" />
+    </Feature>
+
+  </Package>
+
+</Wix>
