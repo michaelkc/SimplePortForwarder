@@ -36,12 +36,12 @@
 
 ## Phase 4: GitHub Actions – Build & Test
 
-- [ ] Create `.github/workflows/build.yml`
+- [x] Create `.github/workflows/build.yml`
   - Trigger on push/PR to `main` and `dotnet10-upgrade`
   - Use `actions/setup-dotnet` with .NET 10 SDK
   - Steps: restore → build → test
   - Run on `windows-latest` (Windows Service project)
-- [ ] Publish test results as workflow artifacts
+- [x] Publish test results as workflow artifacts
 
 ## Phase 5: GitHub Actions – Installer
 

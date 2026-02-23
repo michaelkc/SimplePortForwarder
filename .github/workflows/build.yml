@@ -1,0 +1,35 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main, dotnet10-upgrade]
+  pull_request:
+    branches: [main, dotnet10-upgrade]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore portforwarder.sln
+
+      - name: Build
+        run: dotnet build portforwarder.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test portforwarder.sln --no-build -c Release --logger "trx;LogFileName=test-results.trx"
+
+      - name: Publish test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
