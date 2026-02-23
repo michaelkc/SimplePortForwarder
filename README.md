@@ -17,19 +17,28 @@ dotnet build portforwarder.sln
 ### Using command-line arguments
 
 ```
-dotnet run --project src/portforwarder.csproj -- --PortForwarder:LocalPort=3390 --PortForwarder:RemoteHost=192.168.15.7 --PortForwarder:RemotePort=3389
+dotnet run --project src/portforwarder.csproj -- --PortForwarder:Rules:0:LocalPort=3390 --PortForwarder:Rules:0:RemoteHost=192.168.15.7 --PortForwarder:Rules:0:RemotePort=3389
 ```
 
 ### Using appsettings.json
 
-Edit `src/appsettings.json` with your desired configuration:
+Edit `src/appsettings.json` with your desired forwarding rules. Multiple rules are supported:
 
 ```json
 {
   "PortForwarder": {
-    "LocalPort": 3390,
-    "RemoteHost": "192.168.15.7",
-    "RemotePort": 3389
+    "Rules": [
+      {
+        "LocalPort": 3390,
+        "RemoteHost": "192.168.15.7",
+        "RemotePort": 3389
+      },
+      {
+        "LocalPort": 8080,
+        "RemoteHost": "10.0.0.5",
+        "RemotePort": 80
+      }
+    ]
   }
 }
 ```
@@ -69,16 +78,20 @@ When running as a service, edit `appsettings.json` in the install directory (`C:
 
 ## Configuration
 
+Each forwarding rule has the following settings:
+
 | Setting | Description | Example |
 |---------|-------------|---------|
-| `PortForwarder:LocalPort` | Local port to listen on | `3390` |
-| `PortForwarder:RemoteHost` | Remote host to forward to | `192.168.15.7` |
-| `PortForwarder:RemotePort` | Remote port to forward to | `3389` |
+| `LocalPort` | Local port to listen on | `3390` |
+| `RemoteHost` | Remote host to forward to | `192.168.15.7` |
+| `RemotePort` | Remote port to forward to | `3389` |
+
+Multiple rules can be defined to forward several ports simultaneously.
 
 Configuration can be provided via:
-- `appsettings.json`
-- Command-line arguments (e.g., `--PortForwarder:LocalPort=3390`)
-- Environment variables (e.g., `PortForwarder__LocalPort=3390`)
+- `appsettings.json` (primary, see example above)
+- Command-line arguments (e.g., `--PortForwarder:Rules:0:LocalPort=3390`)
+- Environment variables (e.g., `PortForwarder__Rules__0__LocalPort=3390`)
 
 ## Tests
 

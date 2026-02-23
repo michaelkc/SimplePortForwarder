@@ -9,7 +9,7 @@ namespace PortForwarder
         private readonly ILogger<TcpPortForwarder> _forwarderLogger;
         private readonly ILogger<PortForwarderService> _logger;
         private readonly PortForwarderOptions _options;
-        private TcpPortForwarder? _forwarder;
+        private readonly List<TcpPortForwarder> _forwarders = new();
 
         public PortForwarderService(
             IOptions<PortForwarderOptions> options,
@@ -23,17 +23,30 @@ namespace PortForwarder
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _forwarder = new TcpPortForwarder(_options.LocalPort, _options.RemotePort, _options.RemoteHost, _forwarderLogger);
-            _forwarder.Start();
+            if (_options.Rules.Count == 0)
+            {
+                _logger.LogWarning("No forwarding rules configured. Add rules to the PortForwarder:Rules section in appsettings.json.");
+                return Task.CompletedTask;
+            }
 
-            _logger.LogInformation(
-                "Forwarding local port {LocalPort} to {RemoteHost}:{RemotePort}",
-                _options.LocalPort, _options.RemoteHost, _options.RemotePort);
+            foreach (var rule in _options.Rules)
+            {
+                var forwarder = new TcpPortForwarder(rule.LocalPort, rule.RemotePort, rule.RemoteHost, _forwarderLogger);
+                forwarder.Start();
+                _forwarders.Add(forwarder);
+
+                _logger.LogInformation(
+                    "Forwarding local port {LocalPort} to {RemoteHost}:{RemotePort}",
+                    rule.LocalPort, rule.RemoteHost, rule.RemotePort);
+            }
 
             stoppingToken.Register(() =>
             {
-                _logger.LogInformation("Stopping port forwarder");
-                _forwarder.Stop();
+                _logger.LogInformation("Stopping all port forwarders");
+                foreach (var forwarder in _forwarders)
+                {
+                    forwarder.Stop();
+                }
             });
 
             return Task.CompletedTask;
