@@ -20,13 +20,13 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore portforwarder.sln
+        run: dotnet restore src/portforwarder.sln
 
       - name: Build
-        run: dotnet build portforwarder.sln --no-restore -c Release
+        run: dotnet build src/portforwarder.sln --no-restore -c Release
 
       - name: Test
-        run: dotnet test portforwarder.sln --no-build -c Release --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test src/portforwarder.sln --no-build -c Release --logger "trx;LogFileName=test-results.trx"
 
       - name: Publish test results
         uses: actions/upload-artifact@v4

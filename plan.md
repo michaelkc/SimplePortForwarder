@@ -14,7 +14,7 @@
 - [x] Enable modern project defaults: `<ImplicitUsings>enable</ImplicitUsings>`, `<Nullable>enable</Nullable>`
 - [x] Clean up explicit `using` statements now covered by implicit usings
 - [x] Add nullable annotations to existing types (`ClientPair`, `TcpPortForwarder`)
-- [x] Move solution file to repo root for conventional layout
+- [x] Keep solution file in `src/` folder
 - [x] Verify build succeeds with `dotnet build`
 
 ## Phase 2: Windows Service Support
@@ -55,6 +55,6 @@
 ## Resolved Decisions
 
 1. **Installer technology** → WiX v6 MSI (`WixToolset.Sdk/6.0.2`)
-2. **Solution structure** → `.sln` at repo root; `src/` and `tests/` subdirectories
+2. **Solution structure** → `.sln` in `src/` folder; `tests/` as sibling directory
 3. **Configuration model** → `appsettings.json` with `PortForwarder:Rules` section; supports multiple forwarding rules
 4. **Async modernization** → Deferred; legacy APM pattern retained for now
