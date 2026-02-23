@@ -3,6 +3,7 @@ name: Build & Test
 on:
   push:
     branches: [main, dotnet10-upgrade]
+    tags: ['v*']
   pull_request:
     branches: [main, dotnet10-upgrade]
 
@@ -33,3 +34,21 @@ jobs:
         with:
           name: test-results
           path: '**/TestResults/*.trx'
+
+      - name: Publish self-contained
+        run: dotnet publish src/portforwarder.csproj -c Release -r win-x64 --self-contained -o publish
+
+      - name: Build MSI installer
+        run: dotnet build installer/PortForwarder.Installer.wixproj -p:PublishDir=${{ github.workspace }}\publish\
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PortForwarder-win-x64-msi
+          path: installer/bin/Debug/PortForwarder.Installer.msi
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/bin/Debug/PortForwarder.Installer.msi

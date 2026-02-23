@@ -45,10 +45,10 @@
 
 ## Phase 5: GitHub Actions – Installer
 
-- [ ] Build a self-contained publish (`dotnet publish -r win-x64 --self-contained`)
-- [ ] Package as an installer (see **open question** below)
-- [ ] Upload installer artifact in the workflow
-- [ ] Optionally create a GitHub Release on tag push
+- [x] Build a self-contained publish (`dotnet publish -r win-x64 --self-contained`)
+- [x] Package as an installer (WiX v6 MSI via `WixToolset.Sdk/6.0.2`)
+- [x] Upload installer artifact in the workflow
+- [x] Optionally create a GitHub Release on tag push
 
 ---
 

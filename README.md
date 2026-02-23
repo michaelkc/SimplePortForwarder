@@ -44,27 +44,28 @@ Press `Ctrl+C` to stop.
 
 ## Install as a Windows Service
 
-Publish a self-contained build:
+### Using the MSI installer
+
+Download the latest `PortForwarder.Installer.msi` from [Releases](https://github.com/michaelkc/SimplePortForwarder/releases) and run it. The MSI installs the application to Program Files and registers the Windows Service.
+
+Start the service after installation:
 
 ```
-dotnet publish src/portforwarder.csproj -c Release -r win-x64 --self-contained
-```
-
-Install the service (from an elevated prompt):
-
-```
-sc.exe create PortForwarder binPath="C:\path\to\publish\portforwarder.exe"
 sc.exe start PortForwarder
 ```
 
-Uninstall:
+To uninstall, use **Add/Remove Programs** or run the MSI again.
+
+### Building the MSI yourself
 
 ```
-sc.exe stop PortForwarder
-sc.exe delete PortForwarder
+dotnet publish src/portforwarder.csproj -c Release -r win-x64 --self-contained -o publish
+dotnet build installer/PortForwarder.Installer.wixproj -p:PublishDir=%cd%\publish\
 ```
 
-When running as a service, configuration is read from `appsettings.json` next to the executable.
+The MSI is produced at `installer/bin/Debug/PortForwarder.Installer.msi`.
+
+When running as a service, edit `appsettings.json` in the install directory (`C:\Program Files\SimplePortForwarder\`).
 
 ## Configuration
 
