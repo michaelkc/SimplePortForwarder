@@ -1,17 +1,22 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using Microsoft.Extensions.Logging;
 
 namespace PortForwarder
 {
-    internal sealed class TcpPortForwarder
+    internal sealed class TcpPortForwarder : IDisposable
     {
+        private const int MaxConnectRetries = 3;
+        private const int BufferSize = 65536;
+
         private readonly int _localPort;
         private readonly ILogger<TcpPortForwarder> _logger;
         private readonly string _targetHost;
         private readonly int _targetPort;
+        private readonly CancellationTokenSource _cts = new();
+        private readonly List<Task> _activeConnections = new();
         private TcpListener? _listener;
+        private Task? _acceptLoop;
 
         public TcpPortForwarder(int localPort, int targetPort, string targetHost, ILogger<TcpPortForwarder> logger)
         {
@@ -25,209 +30,126 @@ namespace PortForwarder
         {
             _listener = new TcpListener(IPAddress.Any, _localPort);
             _listener.Start();
-            _listener.BeginAcceptTcpClient(AcceptTcpClient, _listener);
-        }
-
-        private void AcceptTcpClient(IAsyncResult asyncResult)
-        {
-            if (!(asyncResult.AsyncState is TcpListener asyncState)) throw new Exception("Non-TcpListener AsyncState");
-            var clientPair = new ClientPair();
-            try
-            {
-                clientPair.connectRetryCount = 0;
-                clientPair.disconnected = false;
-                clientPair.source = asyncState.EndAcceptTcpClient(asyncResult);
-                clientPair.target = new TcpClient();
-                clientPair.target.BeginConnect(_targetHost, _targetPort, TargetConnect, clientPair);
-                asyncState.BeginAcceptTcpClient(AcceptTcpClient, _listener);
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed when trying to accept new clients");
-            }
-        }
-
-        private void TargetConnect(IAsyncResult asyncResult)
-        {
-            var clientPair = (ClientPair)asyncResult.AsyncState!;
-            try
-            {
-                clientPair.target!.EndConnect(asyncResult);
-                clientPair.targetStream = clientPair.target.GetStream();
-                clientPair.sourceStream = clientPair.source!.GetStream();
-                clientPair.sourceStream.BeginRead(clientPair.sourceBuffer, 0, clientPair.sourceBuffer.Length,
-                    SourceRead, clientPair);
-                clientPair.targetStream.BeginRead(clientPair.targetBuffer, 0, clientPair.targetBuffer.Length,
-                    TargetRead, clientPair);
-            }
-            catch (SocketException ex)
-            {
-                if (clientPair.connectRetryCount < 2)
-                {
-                    ++clientPair.connectRetryCount;
-                    clientPair.target!.BeginConnect(_targetHost, _targetPort, TargetConnect, clientPair);
-                    _logger.LogWarning("Retrying connect");
-                }
-                else
-                {
-                    _logger.LogError(ex, "Connection failed");
-                    clientPair.source!.Close();
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed connecting to target");
-                clientPair.source!.Close();
-            }
-        }
-
-        private void SourceRead(IAsyncResult asyncResult)
-        {
-            var asyncState = (ClientPair)asyncResult.AsyncState!;
-            if (!asyncState.disconnected)
-                if (asyncState.source!.Connected)
-                    try
-                    {
-                        var count = asyncState.sourceStream!.EndRead(asyncResult);
-                        if (count > 0)
-                        {
-                            Encoding.UTF8.GetString(asyncState.sourceBuffer, 0, count);
-                            if (asyncState.target!.Connected)
-                            {
-                                asyncState.targetStream!.BeginWrite(asyncState.sourceBuffer, 0, count, TargetWrite,
-                                    asyncState);
-                                return;
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogInformation("Client disconnected: '{Message}'", ex.Message);
-                    }
-
-            if (asyncState.disconnected)
-                return;
-            DisconnectPair(asyncState);
-        }
-
-        private void TargetRead(IAsyncResult asyncResult)
-        {
-            var asyncState = (ClientPair)asyncResult.AsyncState!;
-            if (!asyncState.disconnected)
-                if (asyncState.target!.Connected)
-                    try
-                    {
-                        var count = asyncState.targetStream!.EndRead(asyncResult);
-                        if (count > 0)
-                            if (asyncState.source!.Connected)
-                            {
-                                asyncState.sourceStream!.BeginWrite(asyncState.targetBuffer, 0, count, SourceWrite,
-                                    asyncState);
-                                return;
-                            }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning("Server disconnected: '{Message}'", ex.Message);
-                    }
-
-            if (asyncState.disconnected)
-                return;
-            DisconnectPair(asyncState);
-        }
-
-        private void DisconnectPair(ClientPair pair)
-        {
-            if (pair.disconnected)
-                return;
-            try
-            {
-                try
-                {
-                    if (pair.target?.Client?.Connected == true)
-                        pair.target.Client.Close();
-                }
-                catch
-                {
-                }
-
-                if (!pair.disconnected)
-                {
-                    pair.disconnected = true;
-                }
-
-                try
-                {
-                    if (pair.source?.Client?.Connected != true)
-                        return;
-                    pair.source.Client.Close();
-                }
-                catch
-                {
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during disconnect");
-            }
-        }
-
-        private void TargetWrite(IAsyncResult asyncResult)
-        {
-            var pair = (ClientPair)asyncResult.AsyncState!;
-            if (pair.disconnected)
-                try
-                {
-                    pair.targetStream!.EndWrite(asyncResult);
-                }
-                catch
-                {
-                }
-            else
-                try
-                {
-                    pair.targetStream!.EndWrite(asyncResult);
-                    pair.sourceStream!.BeginRead(pair.sourceBuffer, 0, pair.sourceBuffer.Length, SourceRead, pair);
-                }
-                catch
-                {
-                    DisconnectPair(pair);
-                }
-        }
-
-        private void SourceWrite(IAsyncResult asyncResult)
-        {
-            var asyncState = (ClientPair)asyncResult.AsyncState!;
-            if (asyncState.disconnected)
-                try
-                {
-                    asyncState.sourceStream!.EndWrite(asyncResult);
-                }
-                catch
-                {
-                }
-            else
-                try
-                {
-                    asyncState.sourceStream!.EndWrite(asyncResult);
-                    asyncState.targetStream!.BeginRead(asyncState.targetBuffer, 0, asyncState.targetBuffer.Length,
-                        TargetRead, asyncState);
-                }
-                catch
-                {
-                    DisconnectPair(asyncState);
-                }
+            _acceptLoop = AcceptLoopAsync(_cts.Token);
         }
 
         public void Stop()
         {
+            _cts.Cancel();
             _listener?.Stop();
+
+            try
+            {
+                Task.WhenAll(_activeConnections).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // Expected during shutdown
+            }
+        }
+
+        public void Dispose()
+        {
+            Stop();
+            _cts.Dispose();
+        }
+
+        private async Task AcceptLoopAsync(CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    var sourceClient = await _listener!.AcceptTcpClientAsync(ct);
+                    var connectionTask = HandleClientAsync(sourceClient, ct);
+                    _activeConnections.Add(connectionTask);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed when trying to accept new clients");
+                }
+            }
+        }
+
+        private async Task HandleClientAsync(TcpClient sourceClient, CancellationToken ct)
+        {
+            using var source = sourceClient;
+
+            TcpClient? targetClient = null;
+            for (var attempt = 0; attempt < MaxConnectRetries; attempt++)
+            {
+                try
+                {
+                    targetClient = new TcpClient();
+                    await targetClient.ConnectAsync(_targetHost, _targetPort, ct);
+                    break;
+                }
+                catch (OperationCanceledException)
+                {
+                    targetClient?.Dispose();
+                    return;
+                }
+                catch (SocketException) when (attempt < MaxConnectRetries - 1)
+                {
+                    _logger.LogWarning("Retrying connect (attempt {Attempt})", attempt + 1);
+                    targetClient?.Dispose();
+                    targetClient = null;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Connection failed");
+                    targetClient?.Dispose();
+                    return;
+                }
+            }
+
+            if (targetClient is null)
+                return;
+
+            using var target = targetClient;
+
+            try
+            {
+                await using var sourceStream = source.GetStream();
+                await using var targetStream = target.GetStream();
+
+                var sourceToTarget = CopyStreamAsync(sourceStream, targetStream, "client", ct);
+                var targetToSource = CopyStreamAsync(targetStream, sourceStream, "server", ct);
+
+                await Task.WhenAny(sourceToTarget, targetToSource);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogInformation("Connection closed: '{Message}'", ex.Message);
+            }
+        }
+
+        private async Task CopyStreamAsync(NetworkStream from, NetworkStream to, string direction, CancellationToken ct)
+        {
+            var buffer = new byte[BufferSize];
+            try
+            {
+                int bytesRead;
+                while ((bytesRead = await from.ReadAsync(buffer, ct)) > 0)
+                {
+                    await to.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger.LogInformation("{Direction} disconnected: '{Message}'", direction, ex.Message);
+            }
         }
     }
 }

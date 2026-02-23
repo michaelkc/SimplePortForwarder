@@ -21,75 +21,63 @@ public class TcpPortForwarderTests : IDisposable
     [Fact]
     public async Task ForwardsDataThroughToTarget()
     {
+        var ct = TestContext.Current.CancellationToken;
         var echoPort = GetFreePort();
         var localPort = GetFreePort();
 
         StartEchoServer(echoPort);
 
-        var forwarder = new TcpPortForwarder(localPort, echoPort, "127.0.0.1",
+        using var forwarder = new TcpPortForwarder(localPort, echoPort, "127.0.0.1",
             NullLogger<TcpPortForwarder>.Instance);
         forwarder.Start();
 
-        try
-        {
-            using var client = new TcpClient();
-            await client.ConnectAsync(IPAddress.Loopback, localPort);
-            await using var stream = client.GetStream();
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, localPort, ct);
+        await using var stream = client.GetStream();
 
-            var message = "Hello, PortForwarder!"u8.ToArray();
-            await stream.WriteAsync(message);
+        var message = "Hello, PortForwarder!"u8.ToArray();
+        await stream.WriteAsync(message, ct);
 
-            var buffer = new byte[1024];
-            var bytesRead = await stream.ReadAsync(buffer).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        var buffer = new byte[1024];
+        var bytesRead = await stream.ReadAsync(buffer, ct).AsTask().WaitAsync(TimeSpan.FromSeconds(5), ct);
 
-            var response = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-            Assert.Equal("Hello, PortForwarder!", response);
-        }
-        finally
-        {
-            forwarder.Stop();
-        }
+        var response = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+        Assert.Equal("Hello, PortForwarder!", response);
     }
 
     [Fact]
     public async Task HandlesMultipleClients()
     {
+        var ct = TestContext.Current.CancellationToken;
         var echoPort = GetFreePort();
         var localPort = GetFreePort();
 
         StartEchoServer(echoPort);
 
-        var forwarder = new TcpPortForwarder(localPort, echoPort, "127.0.0.1",
+        using var forwarder = new TcpPortForwarder(localPort, echoPort, "127.0.0.1",
             NullLogger<TcpPortForwarder>.Instance);
         forwarder.Start();
 
-        try
+        var tasks = Enumerable.Range(0, 3).Select(async i =>
         {
-            var tasks = Enumerable.Range(0, 3).Select(async i =>
-            {
-                using var client = new TcpClient();
-                await client.ConnectAsync(IPAddress.Loopback, localPort);
-                await using var stream = client.GetStream();
+            using var client = new TcpClient();
+            await client.ConnectAsync(IPAddress.Loopback, localPort, ct);
+            await using var stream = client.GetStream();
 
-                var message = Encoding.UTF8.GetBytes($"Client {i}");
-                await stream.WriteAsync(message);
+            var message = Encoding.UTF8.GetBytes($"Client {i}");
+            await stream.WriteAsync(message, ct);
 
-                var buffer = new byte[1024];
-                var bytesRead = await stream.ReadAsync(buffer).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            var buffer = new byte[1024];
+            var bytesRead = await stream.ReadAsync(buffer, ct).AsTask().WaitAsync(TimeSpan.FromSeconds(5), ct);
 
-                return Encoding.UTF8.GetString(buffer, 0, bytesRead);
-            });
+            return Encoding.UTF8.GetString(buffer, 0, bytesRead);
+        });
 
-            var results = await Task.WhenAll(tasks);
+        var results = await Task.WhenAll(tasks);
 
-            Assert.Contains("Client 0", results);
-            Assert.Contains("Client 1", results);
-            Assert.Contains("Client 2", results);
-        }
-        finally
-        {
-            forwarder.Stop();
-        }
+        Assert.Contains("Client 0", results);
+        Assert.Contains("Client 1", results);
+        Assert.Contains("Client 2", results);
     }
 
     private void StartEchoServer(int port)

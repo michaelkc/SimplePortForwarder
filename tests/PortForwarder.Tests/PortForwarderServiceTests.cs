@@ -11,6 +11,7 @@ public class PortForwarderServiceTests
     [Fact]
     public async Task StartsAndStopsCleanly()
     {
+        var ct = TestContext.Current.CancellationToken;
         var echoPort = GetFreePort();
         var localPort = GetFreePort();
 
@@ -36,7 +37,7 @@ public class PortForwarderServiceTests
 
         // Verify the service is listening by connecting
         using var client = new TcpClient();
-        await client.ConnectAsync(IPAddress.Loopback, localPort);
+        await client.ConnectAsync(IPAddress.Loopback, localPort, ct);
         client.Close();
 
         serviceCts.Cancel();
@@ -49,6 +50,7 @@ public class PortForwarderServiceTests
     [Fact]
     public async Task StartsMultipleForwarders()
     {
+        var ct = TestContext.Current.CancellationToken;
         var echoPort1 = GetFreePort();
         var echoPort2 = GetFreePort();
         var localPort1 = GetFreePort();
@@ -76,11 +78,11 @@ public class PortForwarderServiceTests
 
         // Verify both forwarders are listening
         using var client1 = new TcpClient();
-        await client1.ConnectAsync(IPAddress.Loopback, localPort1);
+        await client1.ConnectAsync(IPAddress.Loopback, localPort1, ct);
         client1.Close();
 
         using var client2 = new TcpClient();
-        await client2.ConnectAsync(IPAddress.Loopback, localPort2);
+        await client2.ConnectAsync(IPAddress.Loopback, localPort2, ct);
         client2.Close();
 
         serviceCts.Cancel();
