@@ -51,6 +51,7 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{966CC7B8-2A51-4C9B-ADB7-916923840397} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{E505B9CC-59EE-4D39-AA4E-9774FB631052} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F35C4E7B-766F-4974-A3D8-BFCF0B2D4CB6}

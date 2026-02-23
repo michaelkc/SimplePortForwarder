@@ -52,35 +52,9 @@
 
 ---
 
-## Open Questions (need your input)
+## Resolved Decisions
 
-### 1. Installer technology
-What kind of installer do you want?
-- **A) Inno Setup** – free, produces a classic `Setup.exe`, can register/unregister the Windows Service during install/uninstall. Well-supported in GitHub Actions.
-- **B) WiX v5 (MSI)** – produces an `.msi`, enterprise-friendly, GPO-deployable. More complex to set up.
-- **C) ZIP + sc.exe script** – simplest option: just publish a zip with a `install-service.ps1` / `uninstall-service.ps1` script that uses `sc.exe create` / `sc.exe delete`.
-- **D) MSIX** – modern Windows packaging, but less common for services.
-
-### 2. Solution structure
-I plan to move the `.sln` to the repo root so the layout becomes:
-```
-SimplePortForwarder.sln
-src/portforwarder/portforwarder.csproj
-tests/PortForwarder.Tests/PortForwarder.Tests.csproj
-```
-Is that acceptable, or do you prefer keeping the sln inside `src/`?
-
-### 3. Configuration model
-For Windows Service mode the app needs to know `LocalPort`, `RemoteHost`, `RemotePort` without interactive console input. I plan to support:
-- `appsettings.json` (primary for service mode)
-- Command-line args (existing behavior preserved for console mode)
-
-Does that work, or do you want registry-based config, environment variables, etc.?
-
-### 4. Async modernization
-The current code uses the legacy `BeginXxx`/`EndXxx` APM pattern. Should I modernize it to `async`/`await` (`ReadAsync`, `WriteAsync`, `AcceptTcpClientAsync`) as part of this upgrade, or leave the forwarding logic as-is?
-
----
-
-## Implementation Order
-Phases will be implemented sequentially (1 → 2 → 3 → 4 → 5) since each phase builds on the previous.
+1. **Installer technology** → WiX v6 MSI (`WixToolset.Sdk/6.0.2`)
+2. **Solution structure** → `.sln` at repo root; `src/` and `tests/` subdirectories
+3. **Configuration model** → `appsettings.json` with `PortForwarder:Rules` section; supports multiple forwarding rules
+4. **Async modernization** → Deferred; legacy APM pattern retained for now
