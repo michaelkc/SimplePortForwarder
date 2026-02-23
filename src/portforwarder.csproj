@@ -17,4 +17,8 @@
     <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="PortForwarder.Tests" />
+  </ItemGroup>
+
 </Project>

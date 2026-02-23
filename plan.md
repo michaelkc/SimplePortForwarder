@@ -28,11 +28,11 @@
 
 ## Phase 3: XUnit v3 Test Coverage
 
-- [ ] Create `tests/PortForwarder.Tests/PortForwarder.Tests.csproj` targeting `net10.0` with `xunit.v3` package
-- [ ] Add test project to solution
-- [ ] Unit tests for configuration parsing / validation
-- [ ] Integration tests for `TcpPortForwarder`: start a forwarder, connect through it, verify data flows
-- [ ] Tests for service lifecycle (start/stop)
+- [x] Create `tests/PortForwarder.Tests/PortForwarder.Tests.csproj` targeting `net10.0` with `xunit.v3` package
+- [x] Add test project to solution
+- [x] Unit tests for configuration parsing / validation
+- [x] Integration tests for `TcpPortForwarder`: start a forwarder, connect through it, verify data flows
+- [x] Tests for service lifecycle (start/stop)
 
 ## Phase 4: GitHub Actions – Build & Test
 
